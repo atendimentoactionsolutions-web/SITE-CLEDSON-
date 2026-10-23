@@ -426,27 +426,13 @@ const IFINDZ_APP = {
     return match ? match[1].toUpperCase() + ' RAM' : '';
   },
 
-  // Preço de referência oficial fiel à Loja Física de https://srv2058756.hstgr.cloud
+  // Preço direto oficial formatado do catálogo
   calculateReferencePrice(offers, isSemi) {
     if (!offers || offers.length === 0) return 0;
     const validPrices = offers
       .map(o => (typeof o === 'object' ? Number(o.price) : Number(o)) || 0)
-      .filter(p => p > 0)
-      .sort((a, b) => a - b);
-
-    if (validPrices.length === 0) return 0;
-    // Para produtos novos: menor preço de mercado entre os fornecedores
-    if (!isSemi) {
-      return validPrices[0];
-    }
-    // Para seminovos: remove outliers (extremos mínimo e máximo) e tira a média central
-    if (validPrices.length === 1) return validPrices[0];
-    if (validPrices.length === 2) return Math.round((validPrices[0] + validPrices[1]) / 2);
-    if (validPrices.length === 3) return validPrices[1];
-
-    const trimmed = validPrices.slice(1, -1);
-    const sum = trimmed.reduce((acc, val) => acc + val, 0);
-    return Math.round(sum / trimmed.length);
+      .filter(p => p > 0);
+    return validPrices.length > 0 ? validPrices[0] : 0;
   },
 
   // Filtros de higiene de dados oficiais da Loja Física

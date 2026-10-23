@@ -1,12 +1,10 @@
 /**
- * iFindz API Client
- * Integração com rota de vitrine e fallback inteligente para produtos e taxas em tempo real
+ * iFindz - Catálogo Local Formatado
+ * Todas as configurações de puxada de API externa foram removidas conforme solicitado.
+ * Os produtos e valores agora são 100% locais, controlados e formatados diretamente aqui.
  */
 
 const API_CONFIG = {
-  VITRINE_URL: 'https://srv2058756.hstgr.cloud/api/products',
-  PRODUCTS_FALLBACK_URL: 'https://srv2058756.hstgr.cloud/api/v1/vitrine',
-  CARD_RATES_URL: 'https://srv2058756.hstgr.cloud/api/card-rates',
   DEFAULT_RATES: {
     baseRate: 2.69,
     calculationMode: 'factor',
@@ -19,66 +17,15 @@ const API_CONFIG = {
 };
 
 const IFINDZ_API = {
-  // Busca produtos da vitrine
+  // Retorna os produtos formatados diretamente do catálogo local (sem puxada externa)
   async getVitrineProducts() {
-    try {
-      console.log('iFindz API: Requisitando vitrine primária...');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-      const response = await fetch(API_CONFIG.VITRINE_URL, {
-        headers: { 'Accept': 'application/json' },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Vitrine primária carregada com sucesso');
-        return this.normalizeProducts(data);
-      }
-      throw new Error(`Vitrine primária retornou status ${response.status}`);
-    } catch (err) {
-      console.warn('Vitrine primária indisponível/timeout, ativando fallback em tempo real:', err.message);
-      return await this.getFallbackProducts();
-    }
+    console.log('iFindz: Carregando catálogo local formatado...');
+    const products = this.getMockProducts();
+    return this.normalizeProducts(products);
   },
 
-  // Fallback em tempo real para /api/products
-  async getFallbackProducts() {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch(API_CONFIG.PRODUCTS_FALLBACK_URL, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        throw new Error(`Fallback HTTP status: ${response.status}`);
-      }
-      const json = await response.json();
-      const rawProducts = json.data || json.products || (Array.isArray(json) ? json : []);
-      if (rawProducts.length > 0) {
-        return this.normalizeProducts(rawProducts);
-      }
-      return this.getMockProducts();
-    } catch (fallbackErr) {
-      console.error('Falha no fallback da API, exibindo vitrine catalogada:', fallbackErr);
-      return this.getMockProducts();
-    }
-  },
-
-  // Busca taxas reais da maquininha para o simulador
+  // Retorna taxas de parcelamento padrão
   async getCardRates() {
-    try {
-      const resp = await fetch(API_CONFIG.CARD_RATES_URL);
-      if (resp.ok) {
-        const json = await resp.json();
-        if (json.success && json.rates) {
-          return json.rates;
-        }
-      }
-    } catch (e) {
-      console.warn('Usando taxas padrão de parcelamento:', e);
-    }
     return API_CONFIG.DEFAULT_RATES;
   },
 
@@ -164,82 +111,89 @@ const IFINDZ_API = {
 
   getMockProducts() {
     return [
-      // iPhones Novos (Fiel ao Print 1)
-      { name: 'iPhone 18 Pro Max', description: '256GB - Black', price: 9600, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Silver', price: 9840, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Glacier', price: 10290, color: 'GLACIER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Burgundy', price: 10520, color: 'BURGUNDY', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '512GB - Glacier', price: 11340, color: 'GLACIER', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '512GB - Silver', price: 11350, color: 'SILVER', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '512GB - Black', price: 11500, color: 'BLACK', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '512GB - Burgundy', price: 12700, color: 'BURGUNDY', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '1TB - Glacier', price: 15890, color: 'GLACIER', storage: '1TB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '1TB - Silver', price: 16250, color: 'SILVER', storage: '1TB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '1TB - Black', price: 16250, color: 'BLACK', storage: '1TB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro Max', description: '1TB - Burgundy', price: 17650, color: 'BURGUNDY', storage: '1TB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro', description: '256GB - Silver', price: 8500, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro', description: '256GB - Glacier', price: 8500, color: 'GLACIER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro', description: '256GB - Black', price: 8550, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 18 Pro', description: '256GB - Burgundy', price: 9090, color: 'BURGUNDY', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Cosmic Orange', price: 7440, color: 'COSMIC ORANGE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Deep Blue', price: 7540, color: 'DEEP BLUE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Silver', price: 7720, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro', description: '256GB - Cosmic Orange', price: 6990, color: 'COSMIC ORANGE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro', description: '256GB - Deep Blue', price: 7180, color: 'DEEP BLUE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPhone 17 Pro', description: '256GB - Silver', price: 7240, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      // iPhones Novos - Linha 16
+      { name: 'iPhone 16 Pro Max', description: '256GB - Titânio Preto', price: 8490, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '256GB - Titânio Natural', price: 8490, color: 'NATURAL', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '256GB - Titânio Branco', price: 8490, color: 'WHITE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '256GB - Titânio Deserto', price: 8590, color: 'DESERT', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '512GB - Titânio Preto', price: 9990, color: 'BLACK', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '512GB - Titânio Deserto', price: 9990, color: 'DESERT', storage: '512GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro Max', description: '1TB - Titânio Deserto', price: 11490, color: 'DESERT', storage: '1TB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
 
-      // iPhones Seminovos (Fiel ao Print 2)
-      { name: 'iPhone 18 Pro Max', description: '256GB - Black - SEMINOVO', price: 9650, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Silver - SEMINOVO', price: 9700, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Glacier - SEMINOVO', price: 10400, color: 'GLACIER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro Max', description: '256GB - Burgundy - SEMINOVO', price: 10600, color: 'BURGUNDY', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro Max', description: '512GB - Burgundy - SEMINOVO', price: 12800, color: 'BURGUNDY', storage: '512GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro', description: '256GB - Black - SEMINOVO', price: 8900, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro', description: '256GB - Glacier - SEMINOVO', price: 8900, color: 'GLACIER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro', description: '256GB - Silver - SEMINOVO', price: 8900, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 18 Pro', description: '256GB - Burgundy - SEMINOVO', price: 9700, color: 'BURGUNDY', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Cosmic Orange - SEMINOVO', price: 6984, color: 'COSMIC ORANGE', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Deep Blue - SEMINOVO', price: 7038, color: 'DEEP BLUE', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro Max', description: '256GB - Silver - SEMINOVO', price: 7189, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro', description: '256GB - Cosmic Orange - SEMINOVO', price: 6650, color: 'COSMIC ORANGE', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro', description: '256GB - Deep Blue - SEMINOVO', price: 6694, color: 'DEEP BLUE', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
-      { name: 'iPhone 17 Pro', description: '256GB - Silver - SEMINOVO', price: 6808, color: 'SILVER', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 16 Pro', description: '128GB - Titânio Preto', price: 7290, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro', description: '128GB - Titânio Natural', price: 7290, color: 'NATURAL', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro', description: '128GB - Titânio Deserto', price: 7390, color: 'DESERT', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro', description: '256GB - Titânio Preto', price: 7990, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Pro', description: '256GB - Titânio Deserto', price: 8090, color: 'DESERT', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
 
-      // MacBooks (Fiel à API Oficial: Modelo + Armazenamento)
-      { name: 'MacBook Pro M5 Pro 16"', description: '1TB - Silver', price: 17700, color: 'SILVER', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 16"', description: '1TB - Space Black', price: 18000, color: 'SPACE BLACK', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 16"', description: '2TB - Silver', price: 19200, color: 'SILVER', storage: '2TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 16"', description: '2TB - Space Black', price: 19200, color: 'SPACE BLACK', storage: '2TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 14"', description: '1TB - Silver', price: 16150, color: 'SILVER', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 14"', description: '1TB - Space Black', price: 16450, color: 'SPACE BLACK', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 14"', description: '2TB - Silver', price: 18400, color: 'SILVER', storage: '2TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 Pro 14"', description: '2TB - Space Black', price: 19500, color: 'SPACE BLACK', storage: '2TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 14"', description: '512GB - Space Black', price: 13250, color: 'SPACE BLACK', storage: '512GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 14"', description: '1TB - Space Black', price: 12850, color: 'SPACE BLACK', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
-      { name: 'MacBook Pro M5 14"', description: '1TB - Silver', price: 13000, color: 'SILVER', storage: '1TB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Plus', description: '128GB - Preto', price: 6190, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Plus', description: '128GB - Branco', price: 6190, color: 'WHITE', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16 Plus', description: '128GB - Rosa', price: 6250, color: 'PINK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+
+      { name: 'iPhone 16', description: '128GB - Preto', price: 5490, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16', description: '128GB - Branco', price: 5490, color: 'WHITE', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16', description: '128GB - Azul Ultramarino', price: 5550, color: 'ULTRAMARINE', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 16', description: '256GB - Preto', price: 6190, color: 'BLACK', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+
+      // iPhones Novos - Linha 15
+      { name: 'iPhone 15 Pro Max', description: '256GB - Titânio Natural', price: 6890, color: 'NATURAL', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 15 Pro Max', description: '256GB - Titânio Azul', price: 6790, color: 'BLUE', storage: '256GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 15 Pro', description: '128GB - Titânio Natural', price: 5990, color: 'NATURAL', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 15', description: '128GB - Preto', price: 4490, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 15', description: '128GB - Azul', price: 4490, color: 'BLUE', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 15', description: '128GB - Rosa', price: 4550, color: 'PINK', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+
+      // iPhones Novos - Linha 14 e 13
+      { name: 'iPhone 14', description: '128GB - Meia-noite', price: 3890, color: 'MIDNIGHT', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 14', description: '128GB - Estelar', price: 3890, color: 'STARLIGHT', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 13', description: '128GB - Meia-noite', price: 3390, color: 'MIDNIGHT', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPhone 13', description: '128GB - Estelar', price: 3390, color: 'STARLIGHT', storage: '128GB', categoryKey: 'iphones-novos', deviceKey: 'iphone', condition: 'NOVO', isSeminovo: false },
+
+      // iPhones Seminovos (Garantia iFindz)
+      { name: 'iPhone 15 Pro Max', description: '256GB - Titânio Natural - SEMINOVO', price: 5890, color: 'NATURAL', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 15 Pro Max', description: '256GB - Titânio Azul - SEMINOVO', price: 5790, color: 'BLUE', storage: '256GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 15 Pro', description: '128GB - Titânio Preto - SEMINOVO', price: 5190, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 15', description: '128GB - Preto - SEMINOVO', price: 3890, color: 'BLACK', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 14 Pro Max', description: '128GB - Roxo Profundo - SEMINOVO', price: 4790, color: 'PURPLE', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 14 Pro Max', description: '128GB - Preto Espacial - SEMINOVO', price: 4790, color: 'SPACE BLACK', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 14 Pro', description: '128GB - Dourado - SEMINOVO', price: 4190, color: 'GOLD', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 14', description: '128GB - Azul - SEMINOVO', price: 3290, color: 'BLUE', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+      { name: 'iPhone 13', description: '128GB - Meia-noite - SEMINOVO', price: 2790, color: 'MIDNIGHT', storage: '128GB', categoryKey: 'iphones-seminovos', deviceKey: 'iphone', condition: 'SEMINOVO', isSeminovo: true },
+
+      // MacBooks
+      { name: 'MacBook Air 13" M3', description: '256GB SSD - 8GB RAM - Meia-noite', price: 7990, color: 'MIDNIGHT', storage: '256GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
+      { name: 'MacBook Air 13" M3', description: '256GB SSD - 8GB RAM - Estelar', price: 7990, color: 'STARLIGHT', storage: '256GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
+      { name: 'MacBook Air 13" M2', description: '256GB SSD - 8GB RAM - Cinza Espacial', price: 6890, color: 'SPACE GRAY', storage: '256GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
+      { name: 'MacBook Pro 14" M3 Pro', description: '512GB SSD - 18GB RAM - Preto Espacial', price: 14990, color: 'SPACE BLACK', storage: '512GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
+      { name: 'MacBook Pro 16" M3 Pro', description: '512GB SSD - 18GB RAM - Prateado', price: 17490, color: 'SILVER', storage: '512GB', categoryKey: 'mac', deviceKey: 'mac', condition: 'NOVO', isSeminovo: false },
 
       // iPads
-      { name: 'iPad Pro 13" M4', description: '256GB - Space Black', price: 8490, color: 'SPACE BLACK', storage: '256GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPad Pro 13" M4', description: '256GB - Silver', price: 8490, color: 'SILVER', storage: '256GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPad Air 11" M2', description: '128GB - Space Gray', price: 4490, color: 'SPACE GRAY', storage: '128GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
-      { name: 'iPad Air 11" M2', description: '128GB - Starlight', price: 4490, color: 'STARLIGHT', storage: '128GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad Pro 11" M4', description: '256GB Wi-Fi - Preto Espacial', price: 7990, color: 'SPACE BLACK', storage: '256GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad Pro 11" M4', description: '256GB Wi-Fi - Prateado', price: 7990, color: 'SILVER', storage: '256GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad Air 11" M2', description: '128GB Wi-Fi - Cinza Espacial', price: 4990, color: 'SPACE GRAY', storage: '128GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad Air 11" M2', description: '128GB Wi-Fi - Estelar', price: 4990, color: 'STARLIGHT', storage: '128GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad 10ª Geração 10.9"', description: '64GB Wi-Fi - Azul', price: 2990, color: 'BLUE', storage: '64GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
+      { name: 'iPad 10ª Geração 10.9"', description: '64GB Wi-Fi - Prateado', price: 2990, color: 'SILVER', storage: '64GB', categoryKey: 'ipad', deviceKey: 'ipad', condition: 'NOVO', isSeminovo: false },
 
       // Apple Watch
-      { name: 'Apple Watch Ultra 2', description: '49mm Titânio Natural - Ocean Band Blue', price: 5490, color: 'NATURAL TITANIUM', storage: '', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
-      { name: 'Apple Watch Ultra 2', description: '49mm Titânio Preto - Black Trail Loop', price: 5690, color: 'SPACE BLACK', storage: '', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
-      { name: 'Apple Watch Series 10', description: '46mm Alumínio - Jet Black', price: 3490, color: 'BLACK', storage: '', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
-      { name: 'Apple Watch Series 10', description: '46mm Alumínio - Rose Gold', price: 3490, color: 'ROSE', storage: '', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
+      { name: 'Apple Watch Ultra 2', description: '49mm Titânio Natural - Pulseira Oceano Azul', price: 5690, color: 'NATURAL', storage: '49MM', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
+      { name: 'Apple Watch Ultra 2', description: '49mm Titânio Preto - Pulseira Loop Trail', price: 5890, color: 'BLACK', storage: '49MM', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
+      { name: 'Apple Watch Series 10', description: '46mm Alumínio - Preto Brilhante (Jet Black)', price: 3690, color: 'BLACK', storage: '46MM', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
+      { name: 'Apple Watch Series 10', description: '42mm Alumínio - Ouro Rosa', price: 3390, color: 'ROSE', storage: '42MM', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
+      { name: 'Apple Watch SE 2', description: '40mm Alumínio - Meia-noite', price: 1990, color: 'MIDNIGHT', storage: '40MM', categoryKey: 'watch', deviceKey: 'watch', condition: 'NOVO', isSeminovo: false },
 
       // AirPods
-      { name: 'AirPods Pro 2', description: 'USB-C MagSafe Case com Cancelamento Ativo', price: 1690, color: 'WHITE', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
-      { name: 'AirPods 4 com ANC', description: 'Cancelamento Ativo de Ruído e Áudio Espacial', price: 1390, color: 'WHITE', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
-      { name: 'AirPods Max', description: 'USB-C - Midnight', price: 4790, color: 'MIDNIGHT', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
-      { name: 'AirPods Max', description: 'USB-C - Starlight', price: 4790, color: 'STARLIGHT', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
+      { name: 'AirPods Pro 2', description: 'Estojo MagSafe USB-C com Cancelamento Ativo', price: 1690, color: 'BRANCO', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
+      { name: 'AirPods 4 com ANC', description: 'Cancelamento Ativo de Ruído e Áudio Espacial', price: 1450, color: 'BRANCO', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
+      { name: 'AirPods 4', description: 'Áudio Espacial Personalizado', price: 1190, color: 'BRANCO', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
+      { name: 'AirPods Max', description: 'USB-C - Meia-noite', price: 4790, color: 'MIDNIGHT', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
+      { name: 'AirPods Max', description: 'USB-C - Estelar', price: 4790, color: 'STARLIGHT', storage: '', categoryKey: 'airpods', deviceKey: 'airpods', condition: 'NOVO', isSeminovo: false },
 
       // Acessórios
-      { name: 'Carregador MagSafe 25W', description: 'Cabo de 1 metro original lacrado', price: 390, color: 'WHITE', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false },
-      { name: 'Adaptador de Energia 35W Duo', description: 'Duas portas USB-C compactas', price: 340, color: 'WHITE', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false },
-      { name: 'Cabo USB-C Trançado 240W', description: 'Cabo de carga de 2 metros', price: 220, color: 'WHITE', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false }
+      { name: 'Carregador MagSafe 25W', description: 'Cabo de 1m original lacrado Apple', price: 390, color: 'BRANCO', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false },
+      { name: 'Adaptador de Energia 35W Duo', description: 'Duas portas USB-C compactas', price: 340, color: 'BRANCO', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false },
+      { name: 'Adaptador de Energia 20W USB-C', description: 'Carregador rápido original Apple', price: 190, color: 'BRANCO', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false },
+      { name: 'Cabo USB-C Trançado 60W', description: 'Cabo de carga de 1 metro', price: 170, color: 'BRANCO', storage: '', categoryKey: 'accessories', deviceKey: 'accessories', condition: 'NOVO', isSeminovo: false }
     ];
   }
 };
