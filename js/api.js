@@ -1,10 +1,13 @@
 /**
- * iFindz - Catálogo Local Formatado
- * Todas as configurações de puxada de API externa foram removidas conforme solicitado.
- * Os produtos e valores agora são 100% locais, controlados e formatados diretamente aqui.
+ * iFindz API Client
+ * Integração AO VIVO com https://srv2058756.hstgr.cloud/api/products
+ * Categorização e preços principais em tempo real
  */
 
 const API_CONFIG = {
+  VITRINE_URL: 'https://srv2058756.hstgr.cloud/api/products',
+  PRODUCTS_FALLBACK_URL: 'https://srv2058756.hstgr.cloud/api/v1/vitrine',
+  CARD_RATES_URL: 'https://srv2058756.hstgr.cloud/api/card-rates',
   DEFAULT_RATES: {
     baseRate: 2.69,
     calculationMode: 'factor',
@@ -17,90 +20,157 @@ const API_CONFIG = {
 };
 
 const IFINDZ_API = {
-  // Retorna os produtos formatados diretamente do catálogo local (sem puxada externa)
+  // Busca produtos da vitrine AO VIVO do site principal
   async getVitrineProducts() {
-    console.log('iFindz: Carregando catálogo local formatado...');
-    const products = this.getMockProducts();
-    return this.normalizeProducts(products);
+    try {
+      console.log('iFindz API: Puxando produtos AO VIVO de https://srv2058756.hstgr.cloud...');
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const response = await fetch(API_CONFIG.VITRINE_URL, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const json = await response.json();
+        console.log('iFindz API: Dados recebidos com sucesso. Total:', json.total || (json.data && json.data.length));
+        return this.normalizeProducts(json);
+      }
+      throw new Error(`Vitrine retornou status ${response.status}`);
+    } catch (err) {
+      console.warn('iFindz API: Tentando fallback...', err.message);
+      return await this.getFallbackProducts();
+    }
   },
 
-  // Retorna taxas de parcelamento padrão
+  async getFallbackProducts() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(API_CONFIG.PRODUCTS_FALLBACK_URL, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        const json = await response.json();
+        const rawProducts = json.data || json.products || (Array.isArray(json) ? json : []);
+        if (rawProducts.length > 0) {
+          return this.normalizeProducts(rawProducts);
+        }
+      }
+    } catch (e) {
+      console.error('Fallback também falhou:', e);
+    }
+    return this.normalizeProducts(this.getMockProducts());
+  },
+
   async getCardRates() {
+    try {
+      const resp = await fetch(API_CONFIG.CARD_RATES_URL);
+      if (resp.ok) {
+        const json = await resp.json();
+        if (json.success && json.rates) {
+          return json.rates;
+        }
+      }
+    } catch (e) {
+      console.warn('Usando taxas padrão:', e);
+    }
     return API_CONFIG.DEFAULT_RATES;
   },
 
-  // Normalização e categorização inteligente dos dados
+  // Normalização e categorização precisa de todos os produtos ao vivo
   normalizeProducts(products) {
     if (!Array.isArray(products)) {
-      if (products.data && Array.isArray(products.data)) products = products.data;
-      else if (products.products && Array.isArray(products.products)) products = products.products;
+      if (products && products.data && Array.isArray(products.data)) products = products.data;
+      else if (products && products.products && Array.isArray(products.products)) products = products.products;
       else products = [];
     }
 
     return products.map(p => {
-      const rawName = (p.name || p.nome || p.title || 'Produto Apple').toUpperCase();
-      const rawCat = (p.category || p.categoria || '').toUpperCase();
+      const rawCat = (p.category || p.categoria || '').toUpperCase().trim();
+      const rawName = (p.name || p.nome || p.title || 'Produto Apple').toUpperCase().trim();
       const isSemi = p.isSeminovo === true || rawCat === 'SEMI' || rawName.includes('SEMINOVO') || p.condition === 'SEMINOVO';
-      
-      // Detecção precisa de categoria base de produto (deviceKey)
+
       let deviceKey = 'accessories';
       let category = 'Acessórios';
+      let categoryKey = 'accessories';
 
-      if (rawCat === 'ACSS' || rawName.includes('CABO') || rawName.includes('CARREGADOR') || rawName.includes('FONTE') || rawName.includes('CASE') || rawName.includes('CAPA') || rawName.includes('ADAPTADOR') || rawName.includes('MAGIC') || rawName.includes('PENCIL') || rawName.includes('AIRTAG') || rawName.includes('FOLIO')) {
-        deviceKey = 'accessories';
-        category = 'Acessórios';
-      } else if (rawCat === 'IPH' || rawName.includes('IPHONE')) {
-        deviceKey = 'iphone';
-        category = isSemi ? 'iPhones Seminovos' : 'iPhones Novos';
-      } else if (rawCat === 'MCB' || rawName.includes('MACBOOK') || rawName.includes('MAC MINI') || rawName.includes('MAC STUDIO') || rawName.includes('IMAC') || (rawName.includes('MAC') && !rawName.includes('MAX'))) {
-        deviceKey = 'mac';
-        category = 'MacBooks';
-      } else if (rawCat === 'IPAD' || rawName.includes('IPAD')) {
-        deviceKey = 'ipad';
-        category = 'iPads';
-      } else if (rawCat === 'RLG' || rawName.includes('WATCH') || rawName.includes('ULTRA 2') || rawName.includes('ULTRA 1') || rawName.includes('SERIES ')) {
-        deviceKey = 'watch';
-        category = 'Apple Watch';
-      } else if (rawCat === 'PODS' || rawName.includes('AIRPOD') || rawName.includes('AIRPODS')) {
-        deviceKey = 'airpods';
-        category = 'AirPods';
-      } else if (rawCat === 'SEMI') {
-        if (rawName.includes('MAC')) {
+      if (isSemi) {
+        if (rawName.includes('MAC') || rawCat === 'MCB') {
           deviceKey = 'mac';
           category = 'MacBooks';
-        } else if (rawName.includes('IPAD')) {
+          categoryKey = 'mac';
+        } else if (rawName.includes('IPAD') || rawCat === 'IPAD') {
           deviceKey = 'ipad';
           category = 'iPads';
-        } else if (rawName.includes('WATCH')) {
+          categoryKey = 'ipad';
+        } else if (rawName.includes('WATCH') || rawCat === 'RLG') {
           deviceKey = 'watch';
           category = 'Apple Watch';
+          categoryKey = 'watch';
         } else {
           deviceKey = 'iphone';
           category = 'iPhones Seminovos';
+          categoryKey = 'iphones-seminovos';
         }
+      } else if (rawCat === 'IPH' || rawName.includes('IPHONE')) {
+        deviceKey = 'iphone';
+        category = 'iPhones Novos';
+        categoryKey = 'iphones-novos';
+      } else if (rawCat === 'MCB' || rawCat === 'IMAC' || rawName.includes('MACBOOK') || rawName.includes('MAC MINI') || rawName.includes('MAC STUDIO') || rawName.includes('IMAC')) {
+        deviceKey = 'mac';
+        category = 'MacBooks';
+        categoryKey = 'mac';
+      } else if (rawCat === 'IPAD' || rawName.includes('IPAD')) {
+        deviceKey = 'ipad';
+        category = 'iPads';
+        categoryKey = 'ipad';
+      } else if (rawCat === 'RLG' || rawName.includes('WATCH') || rawName.includes('ULTRA')) {
+        deviceKey = 'watch';
+        category = 'Apple Watch';
+        categoryKey = 'watch';
+      } else if (rawCat === 'PODS' || rawName.includes('AIRPOD')) {
+        deviceKey = 'airpods';
+        category = 'AirPods';
+        categoryKey = 'airpods';
+      } else if (rawCat === 'ACSS' || rawName.includes('PENCIL') || rawName.includes('AIRTAG') || rawName.includes('CABO') || rawName.includes('CARREGADOR') || rawName.includes('FONTE') || rawName.includes('ADAPTADOR')) {
+        deviceKey = 'accessories';
+        category = 'Acessórios';
+        categoryKey = 'accessories';
       } else {
-        if (rawName.startsWith('11 ') || rawName.startsWith('12 ') || rawName.startsWith('13 ') || rawName.startsWith('14 ') || rawName.startsWith('15 ') || rawName.startsWith('16 ') || rawName.startsWith('17 ') || rawName.startsWith('18 ') || rawName.includes('PRO MAX') || rawName.includes('PLUS')) {
+        if (rawName.includes('IPHONE') || /\b1[1-9]\b/.test(rawName)) {
           deviceKey = 'iphone';
           category = isSemi ? 'iPhones Seminovos' : 'iPhones Novos';
+          categoryKey = isSemi ? 'iphones-seminovos' : 'iphones-novos';
         } else {
           deviceKey = 'accessories';
           category = 'Acessórios';
+          categoryKey = 'accessories';
         }
       }
 
       const price = Number(p.price || p.preco || p.valor || 0);
-      const specString = p.storage ? `${p.storage} • ${p.color || ''}` : 'Original Lacrado';
+
+      let color = (p.color || '').trim();
+      if (!color || color === '-' || color === 'PADRÃO' || color === 'PADRAO') {
+        if (deviceKey === 'airpods' || deviceKey === 'accessories') {
+          color = 'BRANCO';
+        } else if (deviceKey === 'mac') {
+          color = 'PADRÃO';
+        }
+      }
 
       return {
         id: p.id || Math.random().toString(36).substr(2, 9),
         name: p.name || 'Produto Apple',
-        description: p.description || p.descricao || specString,
+        description: p.description || p.descricao || '',
         price: price,
         category: category,
         deviceKey: deviceKey,
-        categoryKey: isSemi ? 'iphones-seminovos' : (deviceKey === 'iphone' ? 'iphones-novos' : deviceKey),
-        storage: p.storage || '',
-        color: p.color || '',
+        categoryKey: categoryKey,
+        storage: (p.storage || '').trim(),
+        color: color,
         region: p.region || 'ANATEL / Global',
         condition: isSemi ? 'SEMINOVO' : 'NOVO',
         isSeminovo: isSemi,

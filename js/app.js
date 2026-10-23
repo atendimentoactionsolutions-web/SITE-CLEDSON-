@@ -179,11 +179,25 @@ const IFINDZ_APP = {
         }
       }
 
-      const color = this.extractColor(p.description, p.color, deviceKey, p.name);
+      let color = this.extractColor(p.description, p.color, deviceKey, p.name);
       const rawPrice = Number(p.price || 0);
 
-      // Nunca aceitar preco zerado ou cor vazia / PADRÃO na vitrine
-      if (rawPrice <= 0 || !color || color === 'PADRÃO' || color === 'PADRAO') {
+      // Tratamento inteligente para produtos sem cor explícita (AirPods, Cabos, Carregadores, etc.)
+      if (!color) {
+        if (deviceKey === 'airpods' || deviceKey === 'accessories') {
+          color = 'BRANCO';
+        } else if (deviceKey === 'mac') {
+          color = 'PADRÃO';
+        }
+      }
+
+      // Nunca aceitar preco zerado ou cor vazia
+      if (rawPrice <= 0 || !color) {
+        return;
+      }
+
+      // Para iPhones novos, a cor específica é obrigatória
+      if (deviceKey === 'iphone' && (color === 'PADRÃO' || color === 'PADRAO')) {
         return;
       }
 
@@ -426,13 +440,27 @@ const IFINDZ_APP = {
     return match ? match[1].toUpperCase() + ' RAM' : '';
   },
 
-  // Preço direto oficial formatado do catálogo
+  // Preço principal oficial fiel à vitrine (menor valor entre as ofertas para novos, mediana para seminovos)
   calculateReferencePrice(offers, isSemi) {
     if (!offers || offers.length === 0) return 0;
     const validPrices = offers
       .map(o => (typeof o === 'object' ? Number(o.price) : Number(o)) || 0)
       .filter(p => p > 0);
-    return validPrices.length > 0 ? validPrices[0] : 0;
+
+    if (validPrices.length === 0) return 0;
+    // Para produtos novos: melhor preço principal disponível
+    if (!isSemi) {
+      return Math.min(...validPrices);
+    }
+    // Para seminovos: mediana central das ofertas
+    if (validPrices.length === 1) return validPrices[0];
+    validPrices.sort((a, b) => a - b);
+    if (validPrices.length === 2) return Math.round((validPrices[0] + validPrices[1]) / 2);
+    if (validPrices.length === 3) return validPrices[1];
+
+    const trimmed = validPrices.slice(1, -1);
+    const sum = trimmed.reduce((acc, val) => acc + val, 0);
+    return Math.round(sum / trimmed.length);
   },
 
   // Filtros de higiene de dados oficiais da Loja Física
